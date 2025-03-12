@@ -4,7 +4,7 @@ CFLAGS ?= -Wall -Wextra
 SRC = lockify.c
 OBJ = lockify.o
 EXEC = lockify
-INSTALL_DIR = /usr/bin
+INSTALL_DIR = '/usr/bin'
 
 # Default target: compile and install
 all: $(EXEC)
@@ -18,7 +18,7 @@ $(OBJ): $(SRC)
 	$(CC) $(CFLAGS) -c $(SRC)
 
 install: $(EXEC)
-	install -m 755 $(EXEC) $(INSTALL_DIR}
+	install -m 755 $(EXEC) $(INSTALL_DIR)
 	echo "$(EXEC) has been installed to $(INSTALL_DIR)"
 
 clean:
