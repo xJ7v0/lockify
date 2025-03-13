@@ -105,7 +105,7 @@ static inline int get_config(char *path)
 		if (ptr < mapped_config + config_file_size && (isdigit(*ptr) || *ptr == '-' || *ptr == '+'))
 		{
 			int num = atoi(ptr);  // Convert string to integer
-			if (munmap(mapped, file_size) == -1) {
+			if (munmap(mapped_config, config_file_size) == -1) {
 				perror("munmap");
 				close(fd);
 			}
