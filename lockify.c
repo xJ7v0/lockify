@@ -1,15 +1,20 @@
-#include <fcntl.h>
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/inotify.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <X11/extensions/scrnsaver.h>
 
+
+
+#define BUF_LEN (10 * (sizeof(struct inotify_event) + 1024))  // Buffer size for inotify events
 #define HOME_ENV "HOME"
 
 static XScreenSaverInfo* xss_info = 0;
@@ -116,6 +121,10 @@ int main (void)
 	char config_dir[PATH_MAX];
 	char config_file_path[PATH_MAX];
 
+	char buf[BUF_LEN] __attribute__((aligned(8)));
+	ssize_t len;
+	struct inotify_event *event;
+
 	strcat(config_dir, get_xdg_config_home());
 	strcat(config_dir, "/lockify");
 	create_directory(config_dir);
@@ -125,6 +134,22 @@ int main (void)
 
 	int wait = get_config(config_file_path);
 
+	int fd = inotify_init();
+	if (fd == -1)
+	{
+		perror("inotify_init");
+		return -1;
+	}
+
+	int wd = inotify_add_watch(fd, config_file_path, IN_MODIFY);
+	if (wd == -1)
+	{
+		perror("inotify_add_watch");
+		close(fd);
+		return -1;
+	}
+
+
 	if (!(display = XOpenDisplay (0))) {
 		fprintf (stderr, "Couldn't connect to %s\n", XDisplayName (0));
 		return 1;
@@ -132,22 +157,52 @@ int main (void)
 
 	(void) XSync (display, 0);
 
-	loop:
-	if (wait)
+	while(1)
 	{
-		while ((idle = seconds_idle(display)) < wait)
-			usleep(wait - idle);
-
-		if (system("physlock") == 0)
-			goto loop;
-		else
+		if (wait)
 		{
-			write(2, "No physlock found\n", 17);
+
+			len = read(fd, buf, BUF_LEN);
+			if (len == -1)
+			{
+				if (errno == EINTR) {
+					continue;
+				} else {
+					perror("read");
+					break;
+				}
+			}
+
+			for (char *ptr = buf; ptr < buf + len;)
+			{
+				event = (struct inotify_event *) ptr;
+
+				if (event->mask & IN_MODIFY)
+				{
+					wait = get_config(config_file_path);
+				}
+
+				ptr += sizeof(struct inotify_event) + event->len;
+			}
+
+			while ((idle = seconds_idle(display)) < wait)
+				usleep(wait - idle);
+
+			if (system("physlock") == 0)
+				continue;
+			else
+			{
+				write(2, "No physlock found\n", 17);
+				return -1;
+			}
+
+		} else {
+			write(2, "No config file.\n", 16);
+			inotify_rm_watch(fd, wd);
+			close(fd);
 			return -1;
 		}
-
-	} else {
-		write(2, "No config file.\n", 16);
-		return -1;
 	}
+	return -1;
 }
+
