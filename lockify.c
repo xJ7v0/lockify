@@ -12,8 +12,6 @@
 
 #include <X11/extensions/scrnsaver.h>
 
-
-
 #define BUF_LEN (10 * (sizeof(struct inotify_event) + 1024))  // Buffer size for inotify events
 #define HOME_ENV "HOME"
 
@@ -107,11 +105,16 @@ static inline int get_config(char *path)
 		if (ptr < mapped_config + config_file_size && (isdigit(*ptr) || *ptr == '-' || *ptr == '+'))
 		{
 			int num = atoi(ptr);  // Convert string to integer
+			if (munmap(mapped, file_size) == -1) {
+				perror("munmap");
+				close(fd);
+			}
 			return num;
 		}
 	}
 
-	return 0;
+	// Just use a default 2 minutes
+	return 120;
 }
 
 int main (void)
@@ -205,4 +208,3 @@ int main (void)
 	}
 	return -1;
 }
-
