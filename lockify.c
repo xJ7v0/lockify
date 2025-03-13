@@ -181,9 +181,7 @@ int main (void)
 				event = (struct inotify_event *) ptr;
 
 				if (event->mask & IN_MODIFY)
-				{
 					wait = get_config(config_file_path);
-				}
 
 				ptr += sizeof(struct inotify_event) + event->len;
 			}
