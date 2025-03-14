@@ -98,11 +98,11 @@ static inline int get_config(char *path)
 	while (ptr < mapped_config + config_file_size)
 	{
 		// Skip over any non-numeric characters
-		while (ptr < mapped_config + config_file_size && !isdigit(*ptr) && *ptr != '-' && *ptr != '+')
+		while (ptr < mapped_config + config_file_size && !isdigit(*ptr))
 			ptr++;
 
 		// If we find a number, convert it using atoi()
-		if (ptr < mapped_config + config_file_size && (isdigit(*ptr) || *ptr == '-' || *ptr == '+'))
+		if (ptr < mapped_config + config_file_size && (isdigit(*ptr)))
 		{
 			int num = atoi(ptr);  // Convert string to integer
 			if (munmap(mapped_config, config_file_size) == -1) {
@@ -144,6 +144,22 @@ int main (void)
 		return -1;
 	}
 
+	int flags = fcntl(fd, F_GETFL, 0);
+
+	if (flags == -1)
+	{
+		perror("fcntl(F_GETFL)");
+		close(fd);
+        	return -1;
+	}
+
+	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+	{
+		perror("fcntl(F_SETFL)");
+		close(fd);
+		return 1;
+ 	}
+
 	int wd = inotify_add_watch(fd, config_file_path, IN_MODIFY);
 	if (wd == -1)
 	{
@@ -152,10 +168,10 @@ int main (void)
 		return -1;
 	}
 
-
-	if (!(display = XOpenDisplay (0))) {
+	if (!(display = XOpenDisplay (0)))
+	{
 		fprintf (stderr, "Couldn't connect to %s\n", XDisplayName (0));
-		return 1;
+		return -1;
 	}
 
 	(void) XSync (display, 0);
@@ -164,17 +180,11 @@ int main (void)
 	{
 		if (wait)
 		{
-
 			len = read(fd, buf, BUF_LEN);
-			if (len == -1)
+			if (len == -1 && errno != EINTR && errno != EAGAIN)
 			{
-				if (errno == EINTR) {
-					continue;
-				} else {
-					perror("read");
-					break;
-				}
-			}
+				perror("read");
+				return -1;
 
 			for (char *ptr = buf; ptr < buf + len;)
 			{
