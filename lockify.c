@@ -185,6 +185,7 @@ int main (void)
 			{
 				perror("read");
 				return -1;
+			}
 
 			for (char *ptr = buf; ptr < buf + len;)
 			{
