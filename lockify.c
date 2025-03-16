@@ -187,7 +187,7 @@ int main (void)
 				if (len == -1 && errno != EINTR && errno != EAGAIN)
 				{
 					perror("read");
-					return -1;
+					break;
 				}
 
 				for (char *ptr = buf; ptr < buf + len;)
@@ -208,15 +208,17 @@ int main (void)
 			if (system_ret == 127)
 			{
 				write(2, "No physlock found\n", 17);
-				return -1;
+				break;
 			}
 
 		} else {
 			write(2, "No config file.\n", 16);
-			inotify_rm_watch(fd, wd);
-			close(fd);
-			return -1;
+			break;
 		}
 	}
+
+	inotify_rm_watch(fd, wd);
+	close(fd);
+
 	return -1;
 }
