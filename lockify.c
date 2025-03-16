@@ -60,6 +60,7 @@ static inline char* get_xdg_config_home()
 
 static inline int seconds_idle(Display *display)
 {
+	sleep(3);
 	if (!xss_info )
 		xss_info = XScreenSaverAllocInfo();
 	XScreenSaverQueryInfo(display, DefaultRootWindow(display), xss_info);
@@ -180,29 +181,31 @@ int main (void)
 	{
 		if (wait)
 		{
-			len = read(fd, buf, BUF_LEN);
-			if (len == -1 && errno != EINTR && errno != EAGAIN)
-			{
-				perror("read");
-				return -1;
-			}
-
-			for (char *ptr = buf; ptr < buf + len;)
-			{
-				event = (struct inotify_event *) ptr;
-
-				if (event->mask & IN_MODIFY)
-					wait = get_config(config_file_path);
-
-				ptr += sizeof(struct inotify_event) + event->len;
-			}
-
 			while ((idle = seconds_idle(display)) < wait)
-				usleep(wait - idle);
+			{
+				len = read(fd, buf, BUF_LEN);
+				if (len == -1 && errno != EINTR && errno != EAGAIN)
+				{
+					perror("read");
+					return -1;
+				}
 
-			if (system("physlock") == 0)
-				continue;
-			else
+				for (char *ptr = buf; ptr < buf + len;)
+				{
+					event = (struct inotify_event *) ptr;
+
+					if (event->mask & IN_MODIFY)
+						wait = get_config(config_file_path);
+
+					ptr += sizeof(struct inotify_event) + event->len;
+				}
+
+				usleep(wait - idle);
+			}
+
+			int system_ret = system("physlock");
+
+			if (system_ret == 127)
 			{
 				write(2, "No physlock found\n", 17);
 				return -1;
